@@ -2,6 +2,7 @@ import {
   MAX_ANSWER_LENGTH,
   REAL_ANSWER_ID,
   type Player,
+  type PlayerGameStats,
   type RevealItem,
   type Submission,
   type Vote,
@@ -37,17 +38,17 @@ export function validateAnswer(
   if (cleaned.length > MAX_ANSWER_LENGTH) {
     return { ok: false, reason: `Keep it under ${MAX_ANSWER_LENGTH} characters.` };
   }
+  // One agnostic message for BOTH collisions (matches the real answer, or
+  // matches another player's bluff) — a distinct "too close to the real
+  // answer" message would hand the player a giant hint.
   const norm = normalizeAnswer(cleaned);
-  if (norm === normalizeAnswer(realAnswer)) {
+  const collides =
+    norm === normalizeAnswer(realAnswer) ||
+    existingAnswers.some((a) => normalizeAnswer(a) === norm);
+  if (collides) {
     return {
       ok: false,
-      reason: "Too close to the real answer! Try a different bluff.",
-    };
-  }
-  if (existingAnswers.some((a) => normalizeAnswer(a) === norm)) {
-    return {
-      ok: false,
-      reason: "Another player already wrote that. Try a different bluff.",
+      reason: "That answer is already in play. Try a different bluff!",
     };
   }
   return { ok: true, cleaned };
@@ -87,7 +88,7 @@ export function buildVotingOptions(
  */
 export const CORRECT_BASE = 100;
 export const CORRECT_STEP = 10;
-export const POINTS_PER_FOOL = 10;
+export const POINTS_PER_FOOL = 50;
 
 /** Points for the n-th (0-based) player to pick the real answer. */
 export function correctPointsForRank(index: number): number {
@@ -239,6 +240,50 @@ export function buildPersonalResult(
     votePoints,
     totalPoints: votePoints + bluffPoints,
   };
+}
+
+/* ---------- per-game stats for the final awards ---------- */
+
+/**
+ * Fold one round's votes into the running per-game tallies.
+ * A vote for the real answer -> voter's `correct`++. A vote for a fake ->
+ * voter's `fooled`++ AND the bluff author's `fools`++ (a fake option's id IS
+ * its author's playerId).
+ */
+export function tallyRoundStats(
+  votes: Vote[],
+  prev: Record<string, PlayerGameStats> | undefined
+): Record<string, PlayerGameStats> {
+  const out: Record<string, PlayerGameStats> = {};
+  for (const [uid, s] of Object.entries(prev ?? {})) out[uid] = { ...s };
+  const bump = (uid: string, key: keyof PlayerGameStats, n = 1) => {
+    out[uid] = out[uid] ?? { correct: 0, fooled: 0, fools: 0 };
+    out[uid][key] += n;
+  };
+  for (const v of votes) {
+    if (v.optionId === REAL_ANSWER_ID) {
+      bump(v.playerId, "correct");
+    } else {
+      bump(v.playerId, "fooled");
+      bump(v.optionId, "fools");
+    }
+  }
+  return out;
+}
+
+/** Players tied for the highest value of `key` (empty when the max is 0). */
+export function topPlayersBy(
+  stats: Record<string, PlayerGameStats> | undefined,
+  key: keyof PlayerGameStats
+): { ids: string[]; value: number } {
+  let max = 0;
+  for (const s of Object.values(stats ?? {})) max = Math.max(max, s[key]);
+  if (max === 0) return { ids: [], value: 0 };
+  const ids = Object.entries(stats ?? {})
+    .filter(([, s]) => s[key] === max)
+    .map(([id]) => id)
+    .sort();
+  return { ids, value: max };
 }
 
 export interface RankedPlayer {

@@ -24,6 +24,7 @@ import {
   generateRoomCode,
   sanitizeName,
   scoreRound,
+  tallyRoundStats,
   validateAnswer,
 } from "./gameLogic";
 import {
@@ -323,6 +324,7 @@ export async function startGame(code: string): Promise<void> {
       questionIds: pickQuestionIds(theme, getTotalRounds(room)),
       gameStartedAt: Date.now(),
       roundPoints: {},
+      gameStats: {}, // fresh award tallies each game
       phaseEndsAt: null, // answer phase is untimed: waits for all connected players
       votingOptions: [],
       revealOrder: [],
@@ -508,6 +510,7 @@ export async function advanceFromVoting(code: string): Promise<void> {
       revealOrder,
       correctAwards,
       roundPoints: pointsByPlayer, // leaderboard "+X this round" deltas
+      gameStats: tallyRoundStats(votes, room.gameStats), // final-screen awards
       revealIndex: 0,
       phaseEndsAt: null, // results stay up until the host clicks "Show Leaderboard"
       scoredKey: key,
@@ -629,6 +632,7 @@ export async function playAgain(code: string, newTotalRounds?: number): Promise<
       currentRound: 1,
       gameCount: room.gameCount + 1,
       gameStartedAt: Date.now(),
+      gameStats: {}, // fresh award tallies each game
       totalRounds,
       questionIds: pickQuestionIds(theme, totalRounds), // fresh set for the rematch
       roundPoints: {},

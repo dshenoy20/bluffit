@@ -71,6 +71,8 @@ export interface Room {
   roundPoints?: Record<string, number>;
   /** playerId -> avatar key. Kept on the room doc so selection is race-safe in one transaction. */
   avatars?: Record<string, string>;
+  /** Per-game cumulative stats (correct picks / players fooled / times fooled) for the final awards. */
+  gameStats?: Record<string, PlayerGameStats>;
   createdAt: Timestamp;
   lastActivity: Timestamp;
 }
@@ -89,6 +91,15 @@ export interface Submission {
   playerId: string;
   answer: string; // trimmed display text; "" = blank submission
   round: number;
+}
+
+export interface PlayerGameStats {
+  /** Rounds where this player picked the real answer. */
+  correct: number;
+  /** Times this player fell for someone's bluff. */
+  fooled: number;
+  /** Total players this player's bluffs fooled across the game. */
+  fools: number;
 }
 
 export interface Vote {
