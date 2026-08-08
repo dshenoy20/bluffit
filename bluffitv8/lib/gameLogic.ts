@@ -188,6 +188,19 @@ export interface PersonalResult {
   totalPoints: number;
 }
 
+/** Fallback when a round predates stored awards: derive rank from the vote timestamps. */
+function deriveCorrectAward(votes: Vote[], uid: string): number {
+  const ranked = votes
+    .filter((v) => v.optionId === REAL_ANSWER_ID)
+    .sort(
+      (a, b) =>
+        (a.atMs ?? Number.MAX_SAFE_INTEGER) - (b.atMs ?? Number.MAX_SAFE_INTEGER) ||
+        a.playerId.localeCompare(b.playerId)
+    );
+  const idx = ranked.findIndex((v) => v.playerId === uid);
+  return idx === -1 ? 0 : correctPointsForRank(idx);
+}
+
 /** Derive one player's result for the round from the scored reveal data. */
 export function buildPersonalResult(
   revealOrder: RevealItem[],
@@ -205,7 +218,11 @@ export function buildPersonalResult(
   const bluffVotes = myBluff?.voterNames.length ?? 0;
   const bluffPoints = myBluff?.pointsEarned ?? 0;
   const correct = !!votedItem?.isReal;
-  const votePoints = correct ? (correctAwards?.[uid] ?? CORRECT_BASE) : 0;
+  // Prefer the awards computed at scoring time; if absent (round scored by an
+  // older build), recompute the rank from vote order — never assume 1st place.
+  const votePoints = correct
+    ? (correctAwards?.[uid] ?? deriveCorrectAward(votes, uid))
+    : 0;
   const correctRank =
     correct && votePoints > 0
       ? Math.round((CORRECT_BASE - votePoints) / CORRECT_STEP) + 1

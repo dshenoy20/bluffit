@@ -108,7 +108,16 @@ export function useRoomState(code: string): RoomState {
     );
     const unsubVotes = onSnapshot(
       query(collection(getDb(), "rooms", code, "votes"), where("rk", "==", rk)),
-      (snap) => setVts({ rk, items: snap.docs.map((d) => d.data() as Vote) })
+      (snap) =>
+        setVts({
+          rk,
+          items: snap.docs.map((d) => {
+            // Map the server timestamp to millis so client-side rank
+            // derivation (fallback path) sees real vote order.
+            const raw = d.data() as Vote & { at?: { toMillis?: () => number } };
+            return { ...raw, atMs: raw.at?.toMillis?.() ?? raw.atMs };
+          }),
+        })
     );
     return () => {
       unsubSubs();
@@ -218,9 +227,12 @@ export function usePhaseDriver(
       return;
     }
 
-    // VOTING keeps its countdown.
+    // VOTING keeps its countdown. When the timer hits zero, advance
+    // IMMEDIATELY (host ~instantly; others as a short fallback if the host is
+    // gone) — no grace window sitting on a dead screen. Votes that were still
+    // in flight simply count as skipped, which is what a timeout means.
     if (!room.phaseEndsAt) return;
-    const overdueFor = isHost ? PHASE_GRACE_MS : PHASE_GRACE_MS + 5000;
+    const overdueFor = isHost ? 250 : 4000;
     const overdue = now > room.phaseEndsAt + overdueFor;
     const shouldAdvance = overdue || (everyoneActed && (isHost || actedForMs > 6000));
     if (!shouldAdvance) return;
