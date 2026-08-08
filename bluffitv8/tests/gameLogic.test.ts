@@ -91,7 +91,7 @@ test("correct votes are ranked by time: 100 / 90 / 80", () => {
   assert.equal(pointsByPlayer["p4"] ?? 0, 0); // uncast bluff, no vote: nothing
 });
 
-test("bluff points: +10 per fooled player; correct + bluff combine", () => {
+test("bluff points: +50 per fooled player; correct + bluff combine", () => {
   const options = [
     { id: "p1", text: "Dragon" },
     { id: REAL_ANSWER_ID, text: "Unicorn" },
@@ -103,7 +103,7 @@ test("bluff points: +10 per fooled player; correct + bluff combine", () => {
     { playerId: "p1", optionId: REAL_ANSWER_ID, round: 1, atMs: 900 }, // correct, 1st
   ];
   const { pointsByPlayer } = scoreRound(options, votes, players);
-  assert.equal(pointsByPlayer["p1"], 100 + 30); // correct (1st) + fooled 3 players
+  assert.equal(pointsByPlayer["p1"], 100 + 150); // correct (1st) + fooled 3 players (50 each)
   assert.equal(pointsByPlayer["p2"] ?? 0, 0);
 });
 
@@ -172,7 +172,7 @@ test("reveal order: fakes by fewest votes first, real answer last", () => {
     revealOrder.map((r) => r.optionId),
     ["p1", "p2", REAL_ANSWER_ID]
   );
-  assert.equal(revealOrder[1].pointsEarned, 20); // 2 fooled × 10
+  assert.equal(revealOrder[1].pointsEarned, 100); // 2 fooled × 50
   assert.equal(revealOrder[2].isReal, true);
 });
 
@@ -224,15 +224,15 @@ test("simulated 3+ player round: personal results, ranks, and totals", () => {
     players
   );
 
-  // Ana: correct 2nd (+90) and her bluff fooled Ben (+10) = 100
+  // Ana: correct 2nd (+90) and her bluff fooled Ben (+50) = 140
   const p1 = buildPersonalResult(revealOrder, votes, "p1", correctAwards);
   assert.equal(p1.kind, "correct");
   assert.equal(p1.votePoints, 90);
   assert.equal(p1.correctRank, 2);
   assert.equal(p1.bluffVotes, 1);
-  assert.equal(p1.bluffPoints, 10);
-  assert.equal(p1.totalPoints, 100);
-  assert.equal(pointsByPlayer["p1"], 100);
+  assert.equal(p1.bluffPoints, 50);
+  assert.equal(p1.totalPoints, 140);
+  assert.equal(pointsByPlayer["p1"], 140);
 
   // Cal: correct 1st (+100)
   const p3 = buildPersonalResult(revealOrder, votes, "p3", correctAwards);
@@ -254,7 +254,7 @@ test("simulated 3+ player round: personal results, ranks, and totals", () => {
 
   // Scores sum consistently
   const sum = Object.values(pointsByPlayer).reduce((a, b) => a + b, 0);
-  assert.equal(sum, 100 + 100);
+  assert.equal(sum, 140 + 100);
 });
 
 /* ---- question pools ---- */
@@ -348,8 +348,8 @@ function mulberry(seed: number) {
   };
 }
 
-test("round totals can collide even though ranking applied (leaderboard breakdown case)", () => {
-  // 2nd correct (90) + fooled one player (10) = 100, same TOTAL as 1st correct.
+test("round totals combine ranked answer points and 50-per-fool bluff points", () => {
+  // 2nd correct (90) + fooled one player (50) = 140.
   const options = [
     { id: "p2", text: "bluff" },
     { id: REAL_ANSWER_ID, text: "real" },
@@ -362,8 +362,8 @@ test("round totals can collide even though ranking applied (leaderboard breakdow
   const { pointsByPlayer, correctAwards } = scoreRound(options, votes, players);
   assert.equal(correctAwards["p1"], 100); // ranking DID apply...
   assert.equal(correctAwards["p2"], 90);
-  assert.equal(pointsByPlayer["p1"], 100); // ...but totals collide,
-  assert.equal(pointsByPlayer["p2"], 100); // hence the answer/bluff breakdown in the UI.
+  assert.equal(pointsByPlayer["p1"], 100);
+  assert.equal(pointsByPlayer["p2"], 140); // 90 answer + 50 bluff (breakdown shown in UI)
 });
 
 test("personal-result fallback derives rank from vote order when awards are missing", () => {
