@@ -213,6 +213,44 @@ export async function leaveLobby(code: string, uid: string): Promise<void> {
 }
 
 /**
+ * Fully leave a finished game (FINAL screen "Exit"). Unlike a mere
+ * disconnect, this removes the player from the roster and frees their avatar,
+ * so a host who clicks Play Again afterwards doesn't drag ghost players into
+ * the rematch. If the exiting player is the host, the role passes to the
+ * earliest-joined remaining player. Outside FINAL/LOBBY it just marks the
+ * player disconnected (mid-game rosters must stay intact for scoring).
+ */
+export async function exitRoom(code: string, uid: string): Promise<void> {
+  try {
+    await runTransaction(getDb(), async (tx) => {
+      const snap = await tx.get(roomRef(code));
+      if (!snap.exists()) return;
+      const room = snap.data() as RoomDoc;
+      if (room.phase !== "FINAL" && room.phase !== "LOBBY") {
+        tx.update(playerRef(code, uid), { connected: false });
+        return;
+      }
+      if (!room.roster[uid]) return;
+      const roster = { ...room.roster };
+      delete roster[uid];
+      const avatars = { ...(room.avatars ?? {}) };
+      delete avatars[uid];
+      const update: Record<string, unknown> = { roster, avatars, ...touch };
+      if (room.hostId === uid) {
+        const next = Object.keys(roster)[0];
+        if (next) update.hostId = next;
+      }
+      tx.update(roomRef(code), update);
+      tx.delete(playerRef(code, uid));
+    });
+  } catch {
+    // Leaving must never trap the player on the screen — fall back to a
+    // soft disconnect and let them go.
+    await markDisconnected(code, uid);
+  }
+}
+
+/**
  * Pick (or change) an avatar. Uniqueness is enforced inside a transaction on
  * the room document, so two players racing for the same avatar can never both
  * get it — the second transaction re-reads and fails with a friendly error.
@@ -565,11 +603,14 @@ export async function continueFromScoreboard(code: string): Promise<void> {
   });
 }
 
-/** FINAL -> round 1 ANSWER with scores reset. Host-controlled. */
-export async function playAgain(code: string): Promise<void> {
+/** FINAL -> round 1 ANSWER with scores reset. Host-controlled; host may pick a new round count. */
+export async function playAgain(code: string, newTotalRounds?: number): Promise<void> {
   await runTransaction(getDb(), async (tx) => {
     const room = await getRoomTx(tx, roomRef(code));
     if (room.phase !== "FINAL") return;
+    const totalRounds = (ROUND_OPTIONS as readonly number[]).includes(newTotalRounds ?? -1)
+      ? (newTotalRounds as number)
+      : getTotalRounds(room);
     const playerRefs: DocumentReference[] = [];
     for (const pid of Object.keys(room.roster)) {
       const pRef = playerRef(code, pid);
@@ -588,7 +629,8 @@ export async function playAgain(code: string): Promise<void> {
       currentRound: 1,
       gameCount: room.gameCount + 1,
       gameStartedAt: Date.now(),
-      questionIds: pickQuestionIds(theme, getTotalRounds(room)), // fresh set for the rematch
+      totalRounds,
+      questionIds: pickQuestionIds(theme, totalRounds), // fresh set for the rematch
       roundPoints: {},
       phaseEndsAt: null, // answer phase is untimed: waits for all connected players
       votingOptions: [],
