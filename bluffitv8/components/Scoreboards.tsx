@@ -29,6 +29,7 @@ function ScoreRow({
   maxScore,
   final,
   delta,
+  correctPart,
   avatar,
 }: {
   p: RankedPlayer;
@@ -37,10 +38,15 @@ function ScoreRow({
   final?: boolean;
   /** Points earned this round; when set, the total animates up from (score - delta). */
   delta?: number;
+  /** Portion of `delta` earned by picking the real answer (speed-ranked). */
+  correctPart?: number;
   avatar?: string;
 }) {
   // Animate from the previous-round total to the new total (round 1: from 0).
   const from = delta !== undefined ? Math.max(0, p.score - delta) : undefined;
+  const bluffPart = delta !== undefined ? delta - (correctPart ?? 0) : 0;
+  const showBreakdown =
+    delta !== undefined && delta > 0 && (correctPart ?? 0) > 0 && bluffPart > 0;
   const score = useCountUp(p.score, 900, from, 600 + index * 120);
   const medal = p.rank <= 3 ? MEDALS[p.rank - 1] : null;
   const pct = maxScore > 0 ? Math.max(4, (p.score / maxScore) * 100) : 4;
@@ -74,6 +80,11 @@ function ScoreRow({
               style={{ animationDelay: `${500 + index * 120}ms` }}
             >
               +{delta} this round
+              {showBreakdown && (
+                <span className="ml-1 font-semibold text-slate-500">
+                  ({correctPart} answer · {bluffPart} bluff)
+                </span>
+              )}
             </span>
           )}
         </span>
@@ -93,12 +104,15 @@ function Leaderboard({
   players,
   final,
   roundPoints,
+  correctAwards,
   avatars,
 }: {
   players: Player[];
   final?: boolean;
   /** When present, rows show "+X this round" and animate from the previous total. */
   roundPoints?: Record<string, number>;
+  /** Speed-ranked answer points, used to break down the round delta. */
+  correctAwards?: Record<string, number>;
   avatars?: Record<string, string>;
 }) {
   const ranked = rankPlayers(players);
@@ -113,6 +127,7 @@ function Leaderboard({
           maxScore={maxScore}
           final={final}
           delta={roundPoints ? (roundPoints[p.id] ?? 0) : undefined}
+          correctPart={correctAwards?.[p.id]}
           avatar={avatars?.[p.id]}
         />
       ))}
@@ -143,6 +158,7 @@ export function Scoreboard({
         <Leaderboard
           players={players}
           roundPoints={room.roundPoints ?? {}}
+          correctAwards={room.correctAwards}
           avatars={room.avatars}
         />
         {isHost ? (
