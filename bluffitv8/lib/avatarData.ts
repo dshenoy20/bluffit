@@ -9,7 +9,7 @@ export interface AvatarInfo {
 
 export const AVATARS: AvatarInfo[] = [
   { key: "cool", label: "The Cool One", bg: "#f59e0b", bg2: "#d97706" },
-  { key: "nerd", label: "The Nerd", bg: "#38bdf8", bg2: "#0284c7" },
+  { key: "pirate", label: "The Pirate", bg: "#38bdf8", bg2: "#0284c7" },
   { key: "detective", label: "The Detective", bg: "#a78bfa", bg2: "#7c3aed" },
   { key: "trickster", label: "The Trickster", bg: "#f472b6", bg2: "#db2777" },
   { key: "cowboy", label: "The Cowboy", bg: "#fb923c", bg2: "#ea580c" },
