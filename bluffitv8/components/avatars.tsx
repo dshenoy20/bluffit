@@ -55,17 +55,26 @@ const ART: Record<string, ReactNode> = {
       <path d="M26 45 Q34 50 40 44" stroke={DARK} strokeWidth="2.4" strokeLinecap="round" fill="none" />
     </Face>
   ),
-  /* 2. The Nerd — big round glasses, buck smile, raised brows */
-  nerd: (
+  /* 2. The Pirate — red bandana, eye patch, cheeky grin */
+  pirate: (
     <Face>
-      <circle cx="24.5" cy="33.5" r="6" fill="#fff" stroke={DARK} strokeWidth="2.2" />
-      <circle cx="39.5" cy="33.5" r="6" fill="#fff" stroke={DARK} strokeWidth="2.2" />
-      <line x1="30.5" y1="33.5" x2="33.5" y2="33.5" stroke={DARK} strokeWidth="2.2" />
-      <circle cx="24.5" cy="33.5" r="2" fill={DARK} />
-      <circle cx="39.5" cy="33.5" r="2" fill={DARK} />
-      <path d="M19 25 q5 -3 9 -1 M36 24 q5 -2 9 1" stroke={DARK} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <Smile y={45} w={6} />
-      <rect x="29.5" y="45" width="5" height="3.6" rx="1" fill="#fff" stroke={DARK} strokeWidth="1.4" />
+      {/* bandana */}
+      <path d="M13 33 Q13 15 32 15 Q51 15 51 33 L51 30 Q32 22 13 30 Z" fill="#dc2626" />
+      <path d="M13 27 Q32 19 51 27 Q51 31 32 26 Q13 31 13 27 Z" fill="#b91c1c" />
+      {/* bandana knot + tails */}
+      <circle cx="50" cy="27" r="3.2" fill="#dc2626" />
+      <path d="M52 29 q6 2 8 7 q-6 -1 -9 -4 M53 26 q7 -1 10 2 q-5 2 -10 1" fill="#b91c1c" />
+      {/* bandana dots */}
+      <circle cx="24" cy="21.5" r="1.3" fill="#fecaca" />
+      <circle cx="33" cy="19.5" r="1.3" fill="#fecaca" />
+      <circle cx="41" cy="21.5" r="1.3" fill="#fecaca" />
+      {/* eye patch + strap */}
+      <path d="M14 30 L30 26.5 M35 26 L50 24" stroke={DARK} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="25" cy="34" r="5.2" fill={DARK} />
+      {/* open eye */}
+      <circle cx="39.5" cy="34" r="2.4" fill={DARK} />
+      {/* cheeky grin */}
+      <path d="M25 44 Q32 50 40 43 Q36 46.5 32 46.5 Q28 46.5 25 44 Z" fill={DARK} />
     </Face>
   ),
   /* 3. The Detective — deerstalker-style hat, one raised brow, hmm mouth */
