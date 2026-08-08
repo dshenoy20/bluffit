@@ -10,6 +10,8 @@ import {
   sanitizeName,
   sanitizeRoomCode,
   scoreRound,
+  tallyRoundStats,
+  topPlayersBy,
   validateAnswer,
 } from "../lib/gameLogic";
 import { REAL_ANSWER_ID, DEFAULT_ROUNDS, type Submission, type Vote } from "../lib/types";
@@ -377,6 +379,32 @@ test("personal-result fallback derives rank from vote order when awards are miss
   const r = buildPersonalResult(revealOrder, votes, "p1", undefined);
   assert.equal(r.votePoints, 90);
   assert.equal(r.correctRank, 2);
+});
+
+test("game awards: tallyRoundStats accumulates and topPlayersBy finds winners/ties", () => {
+  const round1: Vote[] = [
+    { playerId: "p1", optionId: REAL_ANSWER_ID, round: 1, atMs: 1 }, // p1 correct
+    { playerId: "p2", optionId: "p1", round: 1, atMs: 2 }, // p2 fooled by p1
+    { playerId: "p3", optionId: "p1", round: 1, atMs: 3 }, // p3 fooled by p1
+  ];
+  const round2: Vote[] = [
+    { playerId: "p1", optionId: REAL_ANSWER_ID, round: 2, atMs: 1 }, // p1 correct again
+    { playerId: "p2", optionId: "p3", round: 2, atMs: 2 }, // p2 fooled by p3
+    { playerId: "p3", optionId: REAL_ANSWER_ID, round: 2, atMs: 3 }, // p3 correct
+  ];
+  const stats = tallyRoundStats(round2, tallyRoundStats(round1, undefined));
+  assert.deepEqual(stats["p1"], { correct: 2, fooled: 0, fools: 2 });
+  assert.deepEqual(stats["p2"], { correct: 0, fooled: 2, fools: 0 });
+  assert.deepEqual(stats["p3"], { correct: 1, fooled: 1, fools: 1 });
+
+  assert.deepEqual(topPlayersBy(stats, "correct"), { ids: ["p1"], value: 2 }); // most right
+  assert.deepEqual(topPlayersBy(stats, "fools"), { ids: ["p1"], value: 2 }); // master bluffer
+  assert.deepEqual(topPlayersBy(stats, "fooled"), { ids: ["p2"], value: 2 }); // most fooled
+  // zero-max awards return empty (hidden in UI)
+  assert.deepEqual(topPlayersBy({ x: { correct: 0, fooled: 0, fools: 0 } }, "fools"), {
+    ids: [],
+    value: 0,
+  });
 });
 
 /* ---- avatars ---- */
