@@ -348,6 +348,37 @@ function mulberry(seed: number) {
   };
 }
 
+test("round totals can collide even though ranking applied (leaderboard breakdown case)", () => {
+  // 2nd correct (90) + fooled one player (10) = 100, same TOTAL as 1st correct.
+  const options = [
+    { id: "p2", text: "bluff" },
+    { id: REAL_ANSWER_ID, text: "real" },
+  ];
+  const votes: Vote[] = [
+    { playerId: "p1", optionId: REAL_ANSWER_ID, round: 1, atMs: 1000 },
+    { playerId: "p2", optionId: REAL_ANSWER_ID, round: 1, atMs: 2000 },
+    { playerId: "p3", optionId: "p2", round: 1, atMs: 1500 },
+  ];
+  const { pointsByPlayer, correctAwards } = scoreRound(options, votes, players);
+  assert.equal(correctAwards["p1"], 100); // ranking DID apply...
+  assert.equal(correctAwards["p2"], 90);
+  assert.equal(pointsByPlayer["p1"], 100); // ...but totals collide,
+  assert.equal(pointsByPlayer["p2"], 100); // hence the answer/bluff breakdown in the UI.
+});
+
+test("personal-result fallback derives rank from vote order when awards are missing", () => {
+  const options = [{ id: REAL_ANSWER_ID, text: "real" }];
+  const votes: Vote[] = [
+    { playerId: "p2", optionId: REAL_ANSWER_ID, round: 1, atMs: 100 },
+    { playerId: "p1", optionId: REAL_ANSWER_ID, round: 1, atMs: 200 },
+  ];
+  const { revealOrder } = scoreRound(options, votes, players);
+  // No stored correctAwards (legacy round) -> derive from timestamps, don't assume 100.
+  const r = buildPersonalResult(revealOrder, votes, "p1", undefined);
+  assert.equal(r.votePoints, 90);
+  assert.equal(r.correctRank, 2);
+});
+
 /* ---- avatars ---- */
 
 import { AVATARS, isAvatarKey } from "../lib/avatarData";
