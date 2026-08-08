@@ -12,7 +12,13 @@ import {
   useCountUp,
 } from "./ui";
 import { PlayerAvatar } from "./avatars";
-import { getWinners, rankPlayers, type RankedPlayer } from "@/lib/gameLogic";
+import {
+  getWinners,
+  rankPlayers,
+  topPlayersBy,
+  type RankedPlayer,
+} from "@/lib/gameLogic";
+import type { PlayerGameStats } from "@/lib/types";
 import {
   continueFromScoreboard,
   exitRoom,
@@ -181,6 +187,89 @@ export function Scoreboard({
   );
 }
 
+/* ---------------- game awards (final screen) ---------------- */
+
+function AwardRow({
+  emoji,
+  title,
+  detail,
+  ids,
+  room,
+  index,
+}: {
+  emoji: string;
+  title: string;
+  detail: string;
+  ids: string[];
+  room: RoomDoc;
+  index: number;
+}) {
+  if (ids.length === 0) return null;
+  return (
+    <li
+      className="anim-fade-up flex items-center gap-3 rounded-2xl bg-white/[0.04] px-3.5 py-2.5 ring-1 ring-white/10"
+      style={{ animationDelay: `${300 + index * 120}ms` }}
+    >
+      <span className="text-2xl" aria-hidden>{emoji}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-bold uppercase tracking-widest text-slate-500">
+          {title}
+        </span>
+        <span className="block truncate text-sm font-bold">
+          {ids.map((id) => room.roster[id] ?? "?").join(" & ")}
+          <span className="ml-1.5 font-semibold text-slate-500">{detail}</span>
+        </span>
+      </span>
+      <span className="flex -space-x-2">
+        {ids.slice(0, 3).map((id) => (
+          <PlayerAvatar
+            key={id}
+            avatar={room.avatars?.[id]}
+            name={room.roster[id] ?? "?"}
+            size="sm"
+          />
+        ))}
+      </span>
+    </li>
+  );
+}
+
+function GameAwards({ room }: { room: RoomDoc }) {
+  const stats: Record<string, PlayerGameStats> = room.gameStats ?? {};
+  const rightest = topPlayersBy(stats, "correct");
+  const bluffer = topPlayersBy(stats, "fools");
+  const gullible = topPlayersBy(stats, "fooled");
+  if (!rightest.ids.length && !bluffer.ids.length && !gullible.ids.length) return null;
+  return (
+    <ul className="flex flex-col gap-2">
+      <AwardRow
+        emoji="🎯"
+        title="Most Right Answers"
+        detail={`${rightest.value} correct`}
+        ids={rightest.ids}
+        room={room}
+        index={0}
+      />
+      <AwardRow
+        emoji="🃏"
+        title="Master Bluffer"
+        detail={`fooled ${bluffer.value} ${bluffer.value === 1 ? "player" : "players"}`}
+        ids={bluffer.ids}
+        room={room}
+        index={1}
+      />
+      <AwardRow
+        emoji="🤡"
+        title="Most Fooled"
+        detail={`fell for ${gullible.value} ${gullible.value === 1 ? "bluff" : "bluffs"}`}
+        ids={gullible.ids}
+        room={room}
+        index={2}
+      />
+    </ul>
+  );
+}
+
 /* ---------------- final screen ---------------- */
 
 export function FinalScreen({
@@ -222,6 +311,8 @@ export function FinalScreen({
           </div>
 
           <Leaderboard players={players} final avatars={room.avatars} />
+
+          <GameAwards room={room} />
 
           <div className="flex flex-col gap-2.5">
             {isHost ? (
