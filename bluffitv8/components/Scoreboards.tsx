@@ -15,11 +15,11 @@ import { PlayerAvatar } from "./avatars";
 import { getWinners, rankPlayers, type RankedPlayer } from "@/lib/gameLogic";
 import {
   continueFromScoreboard,
-  markDisconnected,
+  exitRoom,
   playAgain,
   type RoomDoc,
 } from "@/lib/roomService";
-import { getTotalRounds, type Player } from "@/lib/types";
+import { ROUND_OPTIONS, getTotalRounds, type Player } from "@/lib/types";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -196,6 +196,7 @@ export function FinalScreen({
 }) {
   const router = useRouter();
   const [again, setAgain] = useState(false);
+  const [rounds, setRounds] = useState(getTotalRounds(room));
   const ranked = rankPlayers(players);
   const winners = getWinners(ranked);
   const isTie = winners.length > 1;
@@ -224,28 +225,52 @@ export function FinalScreen({
 
           <div className="flex flex-col gap-2.5">
             {isHost ? (
-              <Button
-                size="lg"
-                loading={again}
-                onClick={async () => {
-                  setAgain(true);
-                  await playAgain(room.roomCode).catch(() => {});
-                  setAgain(false);
-                }}
-              >
-                Play Again — new questions
-              </Button>
+              <>
+                {/* the host picks the rematch length */}
+                <div>
+                  <span className="mb-1.5 block text-center text-xs font-bold uppercase tracking-widest text-slate-500">
+                    Rounds for the rematch
+                  </span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {ROUND_OPTIONS.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setRounds(n)}
+                        className={`rounded-xl py-2 text-sm font-black transition-all duration-150 ring-1 ${
+                          rounds === n
+                            ? "bg-gradient-to-b from-amber-300 to-amber-500 text-slate-950 ring-amber-300"
+                            : "bg-white/5 text-slate-300 ring-white/10 hover:bg-white/10"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  size="lg"
+                  loading={again}
+                  onClick={async () => {
+                    setAgain(true);
+                    await playAgain(room.roomCode, rounds).catch(() => {});
+                    setAgain(false);
+                  }}
+                >
+                  Play Again — new questions
+                </Button>
+              </>
             ) : (
               <WaitingNote>Waiting for Host to start a rematch</WaitingNote>
             )}
             <Button
-              variant="ghost"
+              variant="secondary"
               onClick={async () => {
-                await markDisconnected(room.roomCode, uid);
+                await exitRoom(room.roomCode, uid).catch(() => {});
                 router.push("/");
               }}
             >
-              Exit to Home
+              Exit Game
             </Button>
           </div>
         </div>

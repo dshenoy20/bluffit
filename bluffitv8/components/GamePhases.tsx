@@ -60,9 +60,9 @@ function PhaseHeader({
   );
 }
 
-/** One-line scoring hint, shown only in round 1 so first-timers get the incentives immediately. */
+/** One-line scoring hint: only round 1 of the FIRST game — rematches skip the instructions. */
 function ScoringHint({ room, children }: { room: RoomDoc; children: React.ReactNode }) {
-  if (room.currentRound !== 1) return null;
+  if (room.currentRound !== 1 || room.gameCount !== 1) return null;
   return (
     <p className="rounded-xl bg-amber-400/[0.07] px-3 py-2 text-center text-xs font-semibold leading-relaxed text-amber-200/80 ring-1 ring-amber-400/15">
       {children}
@@ -330,7 +330,9 @@ export function RevealPhase({
 
   const headline =
     result.kind === "correct"
-      ? "Correct answer! 🎉"
+      ? result.correctRank === 1
+        ? "⚡ Fastest correct answer!"
+        : "Correct answer! 🎉"
       : result.kind === "fooled"
         ? `😂 You got fooled by ${result.fooledBy}!`
         : "⏰ Time ran out — no vote";
@@ -338,7 +340,9 @@ export function RevealPhase({
   const subtitle =
     result.kind === "correct"
       ? result.correctRank
-        ? `You were ${ordinal(result.correctRank)} of ${result.correctCount} to find it`
+        ? result.correctRank === 1
+          ? `You beat ${result.correctCount - 1 > 0 ? `${result.correctCount - 1} other ${result.correctCount - 1 === 1 ? "player" : "players"}` : "everyone"} to it — speed pays!`
+          : `You were ${ordinal(result.correctRank)} of ${result.correctCount} to find it — faster picks earn more`
         : `${result.correctCount} ${result.correctCount === 1 ? "player" : "players"} got it right`
       : result.kind === "fooled"
         ? "That answer was a bluff."
